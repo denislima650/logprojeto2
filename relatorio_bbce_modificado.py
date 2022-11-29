@@ -144,8 +144,7 @@ class Relatorio_BBCE:
         doc.add_heading('Relatório Semanal BBCE', 0)
         doc.add_heading(f"Semana {self.lista_semana[0].strftime('%d/%m')} - {self.lista_semana[4].strftime('%d/%m')}\n", 1)
         doc.add_paragraph("Produtos com alta liquidez: Sudeste; Convencional; Preço fixo\n")
-        doc.add_picture(f'./graficos/grafico_semana_{self.lista_semana[0].strftime("%d-%m")}.jpg',
-                        width=docx.shared.Cm(15.82))
+        doc.add_picture(f'./graficos/grafico_semana_{self.lista_semana[0].strftime("%d-%m")}.jpg', width=docx.shared.Cm(15.82))
         table = doc.add_table(rows=1, cols=6)
         row = table.rows[0].cells
         lista_row = ['Produto      ', 'Preço inicial', 'Preço final  ', 'Variação     ', 'Qt. Negócios ', 'Volume total ']
