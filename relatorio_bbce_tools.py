@@ -34,15 +34,14 @@ class Relatorio_BBCE:
     def faz_grafico(self):
         db = tl.connection_db('BBCE')
         query1 = self.query_principal(tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
-        print()
+        print(query1)
         query2 = self.query_principal(tabela="precos_interpolation", tabela2="precos_interpolation.preco")
         print(query2)
-        tabela1 = pd.DataFrame(db.query(query1)) #transforma tabela em dataframe
-        tabela2 = pd.DataFrame(db.query(query2)) #transforma tabela em dataframe
-        a = pd.concat([tabela1, tabela2]) #junta as duas tabelas
-        print(a)
-        b = a.sort_values(['inicio', 'dia']) #ordena os valores das colunas inicio e dia
-        b.reset_index(inplace=True, drop=True) #inplace=muda na tabela principal
+        tabela1 = pd.DataFrame(db.query(query1))	 #transforma tabela em dataframe
+        tabela2 = pd.DataFrame(db.query(query2))
+        a = pd.concat([tabela1, tabela2]) 		 #junta as duas tabelas
+        b = a.sort_values(['inicio', 'dia']) 		 #ordena os valores das colunas inicio e dia
+        b.reset_index(inplace=True, drop=True) 		 #inplace=muda na tabela principal
         tabela = b.drop('inicio', axis=1)
         ymin = 10 * round(tabela['preco'].min() / 10)
         ymax = 10 * round(tabela['preco'].max() / 10) + 10
@@ -66,7 +65,7 @@ class Relatorio_BBCE:
                     bbox_extra_artists=(plt.legend(bbox_to_anchor=(1.58, 0), loc="lower right"),), bbox_inches='tight')
         plt.clf()
 
-   def faz_tabelas(self):
+    def faz_tabelas(self):
         db = tl.connection_db('BBCE')
         query1 = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
         print(query1)
@@ -96,11 +95,10 @@ class Relatorio_BBCE:
                 AND data_inicio = "{inicio}"
                 AND data_fim = "{fim}"
                 AND tipo_preco = "Fixo"
-                AND data_hora > "{self.semana[0]}"
-                AND data_hora < "{self.semana[4] + datetime.timedelta(days=1)}"
+                AND data_hora > "{self.lista_semana[0]}"
+                AND data_hora < "{self.lista_semana[4] + datetime.timedelta(days=1)}"
                 '''
                 tabela = pd.DataFrame(db.query(query))
-                # print(tabela)
                 qt_negocios = len(tabela['volume_medio'])
                 volume = sum(tabela['volume_medio'])
                 col_pro.append(produto)
@@ -112,7 +110,7 @@ class Relatorio_BBCE:
         tabela1 = pd.DataFrame(
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_pri, colunas[2]: col_ult, colunas[3]: col_var,
              colunas[4]: col_qtn, colunas[5]: col_vol})
-        semana_passada = [dia - datetime.timedelta(days=7) for dia in self.semana]
+        semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
         query = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
         print(query)
         query_i = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation")
@@ -135,10 +133,58 @@ class Relatorio_BBCE:
                 col_var.append("%.2f%%" % variacao)
         tabela2 = pd.DataFrame(
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_prp, colunas[2]: col_pra, colunas[3]: col_var})
-
-        tabela1.to_excel(f'./tabelas/tabela_semana_{self.semana[0]}.xlsx', sheet_name='sheet1', index=False)
-        tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.semana[0]}.xlsx', sheet_name='sheet2', index=False)
+        tabela1.to_excel(f'./tabelas/tabela_semana_{self.lista_semana[0]}.xlsx', sheet_name='sheet1', index=False)
+        tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.lista_semana[0]}.xlsx', sheet_name='sheet2', index=False)
         return tabela1, tabela2
+    def escreve_relatorio(self):
+        tabela_info, tabela_comparativa = self.faz_tabelas()
+        self.faz_grafico()
+        semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
+        doc = docx.Document()
+        doc.add_heading('Relatório Semanal BBCE', 0)
+        doc.add_heading(f"Semana {self.lista_semana[0].strftime('%d/%m')} - {self.lista_semana[4].strftime('%d/%m')}\n", 1)
+        doc.add_paragraph("Produtos com alta liquidez: Sudeste; Convencional; Preço fixo\n")
+        doc.add_picture(f'./graficos/grafico_semana_{self.lista_semana[0].strftime("%d-%m")}.jpg',
+                        width=docx.shared.Cm(15.82))
+        table = doc.add_table(rows=1, cols=6)
+        row = table.rows[0].cells
+        lista_row = ['Produto      ', 'Preço inicial', 'Preço final  ', 'Variação     ', 'Qt. Negócios ', 'Volume total ']
+        for preenche in range(0, 6):
+            row[preenche].text = lista_row[preenche]
+        for linha, l in tabela_info.itertuples(index=False), range(0, 6):
+            row = table.add_row().cells
+            row[l].text = linha[l]
+        table.style = 'Colorful Grid Accent 1'
+        lista_row3 = [2.47, 2.72, 2.50, 2.17, 2.72, 3.04]
+        for linha in range(0, 6):
+            row[linha].text = lista_row3[linha]
+        doc.add_paragraph(
+            f"\nVariações em relação ao preço da semana anterior ({semana_passada[0].strftime('%d/%m')}-{semana_passada[4].strftime('%d/%m')}) \n")
+        table2 = doc.add_table(rows=1, cols=4)
+        row = table2.rows[0].cells
+        lista_row2 = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
+        for linha in range(0, 4):
+            row[linha].text = lista_row2[linha]
+        for linha, l in tabela_comparativa.itertuples(index=False), range(0, 4):
+            row = table2.add_row().cells
+            row[l].text = linha[l]
+        table2.style = "Colorful Grid Accent 1"
+        tamanho_colunas = [2.46, 3.18, 2.80, 2.10]
+        for t_col in range(0, 4):
+            for cell in table2.columns[t_col].cells:
+                cell.width = docx.shared.Cm(tamanho_colunas[t_col])
+        doc.save(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.docx')
+        try:
+            word = win32.Dispatch('Word.Application')
+            wdFormatPDF = 17
+            in_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.docx')
+            out_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.pdf')
+            doc = word.Documents.Open(in_file)
+            doc.SaveAs(out_file, FileFormat=wdFormatPDF)
+            doc.Close()
+            word.Quit()
+        except Exception:
+            print('Arquivo PDF não foi criado')
 
 mapa = Relatorio_BBCE()
 mapa.faz_grafico()
