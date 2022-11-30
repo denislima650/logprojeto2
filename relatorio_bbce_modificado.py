@@ -1,6 +1,5 @@
 import datetime, pandas as pd, numpy as np, tools as tl, docx, matplotlib.pyplot as plt, os, win32com.client as win32
 from datetime import datetime as dt
-import mysql.connector
 class Relatorio_BBCE:
     def __init__(self):
         while True:
@@ -16,9 +15,8 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-        print(self.lista_semana)
     def query_principal(self, tabela, tabela2, inicio='2022-12-31'):
-        query1 = f'''
+        query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio FROM {tabela} JOIN produtos_bbce ON id_produto = id
         WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
         AND (dia = "{self.lista_semana[4]}"
@@ -31,6 +29,7 @@ class Relatorio_BBCE:
         AND produtos_bbce.preco = "Fixo"
         ORDER BY inicio;
         '''
+        return query_padrao
     def faz_grafico(self):
         db = tl.connection_db('BBCE')
         query1 = self.query_principal(tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
@@ -61,10 +60,9 @@ class Relatorio_BBCE:
         plt.ylabel("Preço em R$")
         plt.yticks(np.arange(ymin, ymax, 5.0))
         plt.grid(linestyle='--')
-        plt.savefig(f'./graficos/grafico_semana_{self.lista_semana[5].strftime("%d-%m")}.jpg',
+        plt.savefig(f'./graficos/grafico_semana_{self.lista_semana[4].strftime("%d-%m")}.jpg',
                     bbox_extra_artists=(plt.legend(bbox_to_anchor=(1.58, 0), loc="lower right"),), bbox_inches='tight')
         plt.clf()
-
     def faz_tabelas(self):
         db = tl.connection_db('BBCE')
         query1 = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
@@ -111,11 +109,11 @@ class Relatorio_BBCE:
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_pri, colunas[2]: col_ult, colunas[3]: col_var,
              colunas[4]: col_qtn, colunas[5]: col_vol})
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
-        query = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
-        print(query)
+        query_j = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
+        print(query_j)
         query_i = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation")
         print(query_i)
-        tabela_preco_passada = pd.DataFrame(db.query(query))
+        tabela_preco_passada = pd.DataFrame(db.query(query_j))
         tabela_preco_passada_i = pd.DataFrame(db.query(query_i))
         print(tabela_preco_passada_i)
         produtos_passada = list(dict.fromkeys(tabela_preco_passada['produto']))
@@ -148,8 +146,8 @@ class Relatorio_BBCE:
         table = doc.add_table(rows=1, cols=6)
         row = table.rows[0].cells
         lista_row = ['Produto      ', 'Preço inicial', 'Preço final  ', 'Variação     ', 'Qt. Negócios ', 'Volume total ']
-        for preenche in range(0, 6):
-            row[preenche].text = lista_row[preenche]
+        for linha in range(0, 6):
+            row[linha].text = lista_row[linha]
         for linha, l in tabela_info.itertuples(index=False), range(0, 6):
             row = table.add_row().cells
             row[l].text = linha[l]
