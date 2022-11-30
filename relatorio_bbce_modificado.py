@@ -15,9 +15,9 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def query_principal(self, tabela, tabela2, inicio='2022-12-31'):
+    def query_principal(self, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
         query_padrao = f'''
-        SELECT produto, dia, {tabela2}, inicio FROM {tabela} JOIN produtos_bbce ON id_produto = id
+        SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
         WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
         AND (dia = "{self.lista_semana[4]}"
         OR dia = "{self.lista_semana[3]}"
@@ -65,9 +65,9 @@ class Relatorio_BBCE:
         plt.clf()
     def faz_tabelas(self):
         db = tl.connection_db('BBCE')
-        query1 = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
+        query1 = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
         print(query1)
-        query2 = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation")
+        query2 = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
         print(query2)
         tabela1 = pd.DataFrame(db.query(query1))
         tabela2 = pd.DataFrame(db.query(query2))
@@ -93,9 +93,10 @@ class Relatorio_BBCE:
                 AND data_inicio = "{inicio}"
                 AND data_fim = "{fim}"
                 AND tipo_preco = "Fixo"
-                AND data_hora > "{self.lista_semana[0]}"
-                AND data_hora < "{self.lista_semana[4] + datetime.timedelta(days=1)}"
+                AND data_hora > "{self.lista_semana[4]}"
+                AND data_hora < "{self.lista_semana[0] + datetime.timedelta(days=1)}"
                 '''
+                print(query)
                 tabela = pd.DataFrame(db.query(query))
                 qt_negocios = len(tabela['volume_medio'])
                 volume = sum(tabela['volume_medio'])
@@ -109,9 +110,9 @@ class Relatorio_BBCE:
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_pri, colunas[2]: col_ult, colunas[3]: col_var,
              colunas[4]: col_qtn, colunas[5]: col_vol})
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
-        query_j = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral")
+        query_j = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=", fim")
         print(query_j)
-        query_i = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation")
+        query_i = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=", fim")
         print(query_i)
         tabela_preco_passada = pd.DataFrame(db.query(query_j))
         tabela_preco_passada_i = pd.DataFrame(db.query(query_i))
@@ -131,6 +132,8 @@ class Relatorio_BBCE:
                 col_var.append("%.2f%%" % variacao)
         tabela2 = pd.DataFrame(
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_prp, colunas[2]: col_pra, colunas[3]: col_var})
+        print(tabela1)
+        print(tabela2)
         tabela1.to_excel(f'./tabelas/tabela_semana_{self.lista_semana[0]}.xlsx', sheet_name='sheet1', index=False)
         tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.lista_semana[0]}.xlsx', sheet_name='sheet2', index=False)
         return tabela1, tabela2
@@ -140,21 +143,27 @@ class Relatorio_BBCE:
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
         doc = docx.Document()
         doc.add_heading('Relatório Semanal BBCE', 0)
-        doc.add_heading(f"Semana {self.lista_semana[0].strftime('%d/%m')} - {self.lista_semana[4].strftime('%d/%m')}\n", 1)
+        doc.add_heading(f"Semana {self.lista_semana[4].strftime('%d/%m')} - {self.lista_semana[0].strftime('%d/%m')}\n", 1)
         doc.add_paragraph("Produtos com alta liquidez: Sudeste; Convencional; Preço fixo\n")
-        doc.add_picture(f'./graficos/grafico_semana_{self.lista_semana[0].strftime("%d-%m")}.jpg', width=docx.shared.Cm(15.82))
+        doc.add_picture(f'./graficos/grafico_semana_{self.lista_semana[4].strftime("%d-%m")}.jpg', width=docx.shared.Cm(15.82))
         table = doc.add_table(rows=1, cols=6)
         row = table.rows[0].cells
         lista_row = ['Produto      ', 'Preço inicial', 'Preço final  ', 'Variação     ', 'Qt. Negócios ', 'Volume total ']
         for linha in range(0, 6):
             row[linha].text = lista_row[linha]
-        for linha, l in tabela_info.itertuples(index=False), range(0, 6):
+        for linha in tabela_info.itertuples(index=False):
             row = table.add_row().cells
-            row[l].text = linha[l]
+            row[0].text = linha[0]
+            row[1].text = linha[1]
+            row[2].text = linha[2]
+            row[3].text = linha[3]
+            row[4].text = linha[4]
+            row[5].text = linha[5]
         table.style = 'Colorful Grid Accent 1'
         lista_row3 = [2.47, 2.72, 2.50, 2.17, 2.72, 3.04]
         for linha in range(0, 6):
-            row[linha].text = lista_row3[linha]
+            for cell in table.columns[linha].cells:
+                cell.width = docx.shared.Cm(lista_row3[linha])
         doc.add_paragraph(
             f"\nVariações em relação ao preço da semana anterior ({semana_passada[0].strftime('%d/%m')}-{semana_passada[4].strftime('%d/%m')}) \n")
         table2 = doc.add_table(rows=1, cols=4)
@@ -162,8 +171,9 @@ class Relatorio_BBCE:
         lista_row2 = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
         for linha in range(0, 4):
             row[linha].text = lista_row2[linha]
-        for linha, l in tabela_comparativa.itertuples(index=False), range(0, 4):
+        for linha in tabela_comparativa.itertuples(index=False):
             row = table2.add_row().cells
+        for l in range(0, 4):
             row[l].text = linha[l]
         table2.style = "Colorful Grid Accent 1"
         tamanho_colunas = [2.46, 3.18, 2.80, 2.10]
@@ -183,5 +193,5 @@ class Relatorio_BBCE:
         except Exception:
             print('Arquivo PDF não foi criado')
 
-mapa = Relatorio_BBCE()
-mapa.faz_grafico()
+relatorio = Relatorio_BBCE()
+relatorio.escreve_relatorio()
