@@ -168,18 +168,20 @@ class Relatorio_BBCE:
             f"\nVariações em relação ao preço da semana anterior ({semana_passada[0].strftime('%d/%m')}-{semana_passada[4].strftime('%d/%m')}) \n")
         table2 = doc.add_table(rows=1, cols=4)
         row = table2.rows[0].cells
-        lista_row2 = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
-        for linha in range(0, 4):
-            row[linha].text = lista_row2[linha]
+        lista_table2 = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
+        for indice in range(0, 4):
+            row[indice].text = lista_table2[indice]
         for linha in tabela_comparativa.itertuples(index=False):
             row = table2.add_row().cells
-        for l in range(0, 4):
-            row[l].text = linha[l]
+            row[0].text = linha[0]
+            row[1].text = linha[1]
+            row[2].text = linha[2]
+            row[3].text = linha[3]
         table2.style = "Colorful Grid Accent 1"
-        tamanho_colunas = [2.46, 3.18, 2.80, 2.10]
-        for t_col in range(0, 4):
-            for cell in table2.columns[t_col].cells:
-                cell.width = docx.shared.Cm(tamanho_colunas[t_col])
+        lista_tamanhos = [2.46, 3.18, 2.80, 2.10]
+        for indice in range(0, 4):
+            for cell in table2.columns[indice].cells:
+                cell.width=docx.shared.Cm(lista_tamanhos[indice])
         doc.save(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.docx')
         try:
             word = win32.Dispatch('Word.Application')
