@@ -15,7 +15,7 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def query_principal(self, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
+    def query_principal(self, tabela, tabela2, inicio='2022-01-31', tem_fim=''):
         query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
         WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
@@ -72,6 +72,7 @@ class Relatorio_BBCE:
         tabela1 = pd.DataFrame(db.query(query1))
         tabela2 = pd.DataFrame(db.query(query2))
         a = pd.concat([tabela1, tabela2])
+        print("a = ", a)
         b = a.sort_values(['inicio', 'dia'])
         b.reset_index(inplace=True, drop=True)
         tabela_preco = b  # .drop('inicio',axis=1)
@@ -165,7 +166,7 @@ class Relatorio_BBCE:
             for cell in table.columns[linha].cells:
                 cell.width = docx.shared.Cm(lista_row3[linha])
         doc.add_paragraph(
-            f"\nVariações em relação ao preço da semana anterior ({semana_passada[0].strftime('%d/%m')}-{semana_passada[4].strftime('%d/%m')}) \n")
+            f"\nVariações em relação ao preço da semana anterior ({semana_passada[4].strftime('%d/%m')}-{semana_passada[0].strftime('%d/%m')}) \n")
         table2 = doc.add_table(rows=1, cols=4)
         row = table2.rows[0].cells
         lista_table2 = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
