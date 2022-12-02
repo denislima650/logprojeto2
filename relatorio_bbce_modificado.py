@@ -166,7 +166,7 @@ class Relatorio_BBCE:
             for cell in table.columns[linha].cells:
                 cell.width = docx.shared.Cm(lista_row3[linha])
         doc.add_paragraph(
-            f"\nVariações em relação ao preço da semana anterior ({semana_passada[4].strftime('%d/%m')}-{semana_passada[0].strftime('%d/%m')}) \n")
+            f"\nVariações em relação ao preço da semana anterior ({semana_passada[0].strftime('%d/%m')}-{semana_passada[4].strftime('%d/%m')}) \n")
         table2 = doc.add_table(rows=1, cols=4)
         row = table2.rows[0].cells
         lista_table2 = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
