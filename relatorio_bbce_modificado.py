@@ -15,7 +15,7 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def query_principal(self, tabela, tabela2, inicio='2022-01-31', tem_fim=''):
+    def query_principal(self, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
         query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
         WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
@@ -123,7 +123,7 @@ class Relatorio_BBCE:
         col_pro, col_prp, col_pra, col_var = [], [], [], []
         for produto in produtos_passada:
             valores = tabela_preco_passada.loc[tabela_preco_passada['produto'] == produto]
-            if len((tabela_preco.loc[tabela_preco['produto'] == produto])['dia']) >= 3 and len(valores['dia']) >= 3:
+            if len((tabela_preco.loc[tabela_preco['produto'] == produto])['dia']) >= 1 and len(valores['dia']) >= 1:
                 preco_atual = (tabela_preco.loc[tabela_preco['produto'] == produto])['preco'].tolist()[-1]
                 preco_passada = valores['preco'].tolist()[-1]
                 variacao = (preco_atual - preco_passada) * 100 / preco_passada
