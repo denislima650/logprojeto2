@@ -111,11 +111,35 @@ class Relatorio_BBCE:
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_pri, colunas[2]: col_ult, colunas[3]: col_var,
              colunas[4]: col_qtn, colunas[5]: col_vol})
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
-        query_j = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=", fim")
-        print(query_j)
-        query_i = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=", fim")
+        query = f'''
+                SELECT produto, dia, precos_bbce_geral.preco, inicio, fim FROM precos_bbce_geral JOIN produtos_bbce ON id_produto = id
+                WHERE DATEDIFF(fim, inicio) < 32 AND inicio < '2023-04-01'
+                AND (dia = "{semana_passada[0]}"
+                OR dia = "{semana_passada[1]}"
+                OR dia = "{semana_passada[2]}"
+                OR dia = "{semana_passada[3]}"
+                OR dia = "{semana_passada[4]}")
+                AND submercado = "SE"
+                AND energia = "CON"
+                AND produtos_bbce.preco = "Fixo"
+                ORDER BY inicio,dia;
+                '''
+        print(query)
+        query_i = f'''
+        SELECT produto, dia, precos_interpolation.preco, inicio, fim FROM precos_interpolation JOIN produtos_bbce ON id_produto = id
+        WHERE DATEDIFF(fim, inicio) < 32 AND inicio < '2023-04-01'
+        AND (dia = "{semana_passada[0]}"
+        OR dia = "{semana_passada[1]}"
+        OR dia = "{semana_passada[2]}"
+        OR dia = "{semana_passada[3]}"
+        OR dia = "{semana_passada[4]}")
+        AND submercado = "SE"
+        AND energia = "CON"
+        AND produtos_bbce.preco = "Fixo"
+        ORDER BY inicio,dia;
+        '''
         print(query_i)
-        tabela_preco_passada = pd.DataFrame(db.query(query_j))
+        tabela_preco_passada = pd.DataFrame(db.query(query))
         tabela_preco_passada_i = pd.DataFrame(db.query(query_i))
         print(tabela_preco_passada_i)
         produtos_passada = list(dict.fromkeys(tabela_preco_passada['produto']))
@@ -135,8 +159,8 @@ class Relatorio_BBCE:
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_prp, colunas[2]: col_pra, colunas[3]: col_var})
         print(tabela1)
         print(tabela2)
-        tabela1.to_excel(f'./tabelas/tabela_semana_{self.lista_semana[0]}.xlsx', sheet_name='sheet1', index=False)
-        tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.lista_semana[0]}.xlsx', sheet_name='sheet2', index=False)
+        tabela1.to_excel(f'./tabelas/tabela_semana_{self.lista_semana[4]}.xlsx', sheet_name='sheet1', index=False)
+        tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.lista_semana[4]}.xlsx', sheet_name='sheet2', index=False)
         return tabela1, tabela2
     def escreve_relatorio(self):
         tabela_info, tabela_comparativa = self.faz_tabelas()
@@ -183,12 +207,12 @@ class Relatorio_BBCE:
         for indice in range(0, 4):
             for cell in table2.columns[indice].cells:
                 cell.width=docx.shared.Cm(lista_tamanhos[indice])
-        doc.save(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.docx')
+        doc.save(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[4].strftime("%d-%m")}.docx')
         try:
             word = win32.Dispatch('Word.Application')
             wdFormatPDF = 17
-            in_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.docx')
-            out_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[0].strftime("%d-%m")}.pdf')
+            in_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[4].strftime("%d-%m")}.docx')
+            out_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[4].strftime("%d-%m")}.pdf')
             doc = word.Documents.Open(in_file)
             doc.SaveAs(out_file, FileFormat=wdFormatPDF)
             doc.Close()
