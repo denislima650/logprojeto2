@@ -15,15 +15,15 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def query_principal(self, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
+    def query_principal(self, lista, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
         query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
         WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
-        AND (dia = "{self.lista_semana[4]}"
-        OR dia = "{self.lista_semana[3]}"
-        OR dia = "{self.lista_semana[2]}"
-        OR dia = "{self.lista_semana[1]}"
-        OR dia = "{self.lista_semana[0]}")
+        AND (dia = "{lista[4]}"
+        OR dia = "{lista[3]}"
+        OR dia = "{lista[2]}"
+        OR dia = "{lista[1]}"
+        OR dia = "{lista[0]}")
         AND submercado = "SE"
         AND energia = "CON"
         AND produtos_bbce.preco = "Fixo"
@@ -32,9 +32,9 @@ class Relatorio_BBCE:
         return query_padrao
     def faz_grafico(self):
         db = tl.connection_db('BBCE')
-        query1 = self.query_principal(tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
+        query1 = self.query_principal(lista=self.lista_semana, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
         print(query1)
-        query2 = self.query_principal(tabela="precos_interpolation", tabela2="precos_interpolation.preco")
+        query2 = self.query_principal(lista=self.lista_semana, tabela="precos_interpolation", tabela2="precos_interpolation.preco")
         print(query2)
         tabela1 = pd.DataFrame(db.query(query1))	 #transforma tabela em dataframe
         tabela2 = pd.DataFrame(db.query(query2))
@@ -65,9 +65,9 @@ class Relatorio_BBCE:
         plt.clf()
     def faz_tabelas(self):
         db = tl.connection_db('BBCE')
-        query1 = self.query_principal(tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
+        query1 = self.query_principal(lista=self.lista_semana, tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
         print(query1)
-        query2 = self.query_principal(tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
+        query2 = self.query_principal(lista=self.lista_semana, tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
         print(query2)
         tabela1 = pd.DataFrame(db.query(query1))
         tabela2 = pd.DataFrame(db.query(query2))
@@ -111,33 +111,9 @@ class Relatorio_BBCE:
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_pri, colunas[2]: col_ult, colunas[3]: col_var,
              colunas[4]: col_qtn, colunas[5]: col_vol})
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
-        query = f'''
-                SELECT produto, dia, precos_bbce_geral.preco, inicio, fim FROM precos_bbce_geral JOIN produtos_bbce ON id_produto = id
-                WHERE DATEDIFF(fim, inicio) < 32 AND inicio < '2023-04-01'
-                AND (dia = "{semana_passada[0]}"
-                OR dia = "{semana_passada[1]}"
-                OR dia = "{semana_passada[2]}"
-                OR dia = "{semana_passada[3]}"
-                OR dia = "{semana_passada[4]}")
-                AND submercado = "SE"
-                AND energia = "CON"
-                AND produtos_bbce.preco = "Fixo"
-                ORDER BY inicio,dia;
-                '''
+        query = self.query_principal(lista=semana_passada, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
         print(query)
-        query_i = f'''
-        SELECT produto, dia, precos_interpolation.preco, inicio, fim FROM precos_interpolation JOIN produtos_bbce ON id_produto = id
-        WHERE DATEDIFF(fim, inicio) < 32 AND inicio < '2023-04-01'
-        AND (dia = "{semana_passada[0]}"
-        OR dia = "{semana_passada[1]}"
-        OR dia = "{semana_passada[2]}"
-        OR dia = "{semana_passada[3]}"
-        OR dia = "{semana_passada[4]}")
-        AND submercado = "SE"
-        AND energia = "CON"
-        AND produtos_bbce.preco = "Fixo"
-        ORDER BY inicio,dia;
-        '''
+        query_i = self.query_principal(lista=semana_passada, tabela="precos_interpolation", tabela2="precos_interpolation.preco")
         print(query_i)
         tabela_preco_passada = pd.DataFrame(db.query(query))
         tabela_preco_passada_i = pd.DataFrame(db.query(query_i))
@@ -178,12 +154,8 @@ class Relatorio_BBCE:
             row[linha].text = lista_row[linha]
         for linha in tabela_info.itertuples(index=False):
             row = table.add_row().cells
-            row[0].text = linha[0]
-            row[1].text = linha[1]
-            row[2].text = linha[2]
-            row[3].text = linha[3]
-            row[4].text = linha[4]
-            row[5].text = linha[5]
+            for i in [0, 1, 2, 3, 4, 5]:
+                row[i].text = linha[i]
         table.style = 'Colorful Grid Accent 1'
         lista_row3 = [2.47, 2.72, 2.50, 2.17, 2.72, 3.04]
         for linha in range(0, 6):
@@ -198,10 +170,8 @@ class Relatorio_BBCE:
             row[indice].text = lista_table2[indice]
         for linha in tabela_comparativa.itertuples(index=False):
             row = table2.add_row().cells
-            row[0].text = linha[0]
-            row[1].text = linha[1]
-            row[2].text = linha[2]
-            row[3].text = linha[3]
+            for i in [0, 1, 2, 3]:
+                row[i].text = linha[i]
         table2.style = "Colorful Grid Accent 1"
         lista_tamanhos = [2.46, 3.18, 2.80, 2.10]
         for indice in range(0, 4):
