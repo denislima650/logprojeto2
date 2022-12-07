@@ -5,8 +5,6 @@ class Relatorio_BBCE:
         while True:
             try:
                 self.periodo = input("Informe a data que quer o relatório (Dd/Mm/Aa): ")
-                self.mes = int(input("Até qual mês? Ex: 2 "))
-                self.ano = int(input("Qual ano? Ex: 2023 "))
                 self.novo_periodo = dt.strptime(self.periodo, '%d/%m/%Y').date()
                 if not self.novo_periodo.weekday() >= 4:
                     raise ValueError("Dia fora do range permitido")
@@ -15,7 +13,7 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def query_principal(self, lista, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
+    def query_principal(self, lista, tabela, tabela2, inicio='2023-01-31', tem_fim=''):
         query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
         WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
@@ -32,14 +30,16 @@ class Relatorio_BBCE:
         return query_padrao
     def faz_grafico(self):
         db = tl.connection_db('BBCE')
-        query1 = self.query_principal(lista=self.lista_semana, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
+        query1 = self.query_principal(lista=self.lista_semana, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco", tem_fim='')
         print(query1)
-        query2 = self.query_principal(lista=self.lista_semana, tabela="precos_interpolation", tabela2="precos_interpolation.preco")
+        query2 = self.query_principal(lista=self.lista_semana, tabela="precos_interpolation", tabela2="precos_interpolation.preco", tem_fim='')
         print(query2)
         tabela1 = pd.DataFrame(db.query(query1))	 #transforma tabela em dataframe
         tabela2 = pd.DataFrame(db.query(query2))
         a = pd.concat([tabela1, tabela2]) 		 #junta as duas tabelas
-        b = a.sort_values(['inicio', 'dia']) 		 #ordena os valores das colunas inicio e dia
+        b = a.sort_values(['inicio', 'dia'])
+        print(a)
+        print(b)#ordena os valores das colunas inicio e dia
         b.reset_index(inplace=True, drop=True) 		 #inplace=muda na tabela principal
         tabela = b.drop('inicio', axis=1)
         ymin = 10 * round(tabela['preco'].min() / 10)
@@ -65,12 +65,12 @@ class Relatorio_BBCE:
         plt.clf()
     def faz_tabelas(self):
         db = tl.connection_db('BBCE')
-        query1 = self.query_principal(lista=self.lista_semana, tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
-        print(query1)
-        query2 = self.query_principal(lista=self.lista_semana, tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
-        print(query2)
-        tabela1 = pd.DataFrame(db.query(query1))
-        tabela2 = pd.DataFrame(db.query(query2))
+        query3 = self.query_principal(lista=self.lista_semana, tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
+        print(query3)
+        query4 = self.query_principal(lista=self.lista_semana, tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
+        print(query4)
+        tabela1 = pd.DataFrame(db.query(query3))
+        tabela2 = pd.DataFrame(db.query(query4))
         a = pd.concat([tabela1, tabela2])
         print("a = ", a)
         b = a.sort_values(['inicio', 'dia'])
@@ -111,12 +111,12 @@ class Relatorio_BBCE:
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_pri, colunas[2]: col_ult, colunas[3]: col_var,
              colunas[4]: col_qtn, colunas[5]: col_vol})
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
-        query = self.query_principal(lista=semana_passada, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco")
-        print(query)
-        query_i = self.query_principal(lista=semana_passada, tabela="precos_interpolation", tabela2="precos_interpolation.preco")
-        print(query_i)
-        tabela_preco_passada = pd.DataFrame(db.query(query))
-        tabela_preco_passada_i = pd.DataFrame(db.query(query_i))
+        query5 = self.query_principal(lista=semana_passada, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco", tem_fim=', fim')
+        print(query5)
+        query6 = self.query_principal(lista=semana_passada, tabela="precos_interpolation", tabela2="precos_interpolation.preco", tem_fim=', fim')
+        print(query6)
+        tabela_preco_passada = pd.DataFrame(db.query(query5))
+        tabela_preco_passada_i = pd.DataFrame(db.query(query6))
         print(tabela_preco_passada_i)
         produtos_passada = list(dict.fromkeys(tabela_preco_passada['produto']))
         colunas = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
