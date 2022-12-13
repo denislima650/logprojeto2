@@ -13,10 +13,10 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def query_principal(self, lista, tabela, tabela2, inicio='2023-01-31', tem_fim=''):
+    def query_principal(self, lista, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
         query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
-        WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > {inicio}
+        WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > '{inicio}'
         AND (dia = "{lista[4]}"
         OR dia = "{lista[3]}"
         OR dia = "{lista[2]}"
