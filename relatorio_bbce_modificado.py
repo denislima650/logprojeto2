@@ -72,15 +72,22 @@ class Relatorio_BBCE:
         tabela1 = pd.DataFrame(db.query(query3))
         tabela2 = pd.DataFrame(db.query(query4))
         a = pd.concat([tabela1, tabela2])
-        print("a = ", a)
         b = a.sort_values(['inicio', 'dia'])
         b.reset_index(inplace=True, drop=True)
         tabela_preco = b  # .drop('inicio',axis=1)
         produtos = list(dict.fromkeys(tabela_preco['produto']))
+        print(produtos)
+        print("-----------------")
+        print("PRODUTOS")
+        print("")
         colunas = ['Produto', 'Preço inicial', 'Preço final', 'Variação', 'Qt. Negócios', 'Volume']
         col_pro, col_pri, col_ult, col_var, col_qtn, col_vol = [], [], [], [], [], []
         for produto in produtos:
+            print("-----------------")
+            print("VALORES")
+            print("")
             valores = tabela_preco.loc[tabela_preco['produto'] == produto]
+            print(valores)
             if len(valores['dia']) >= 4:
                 inicio = valores['inicio'].tolist()[0]
                 fim = valores['fim'].tolist()[0]
@@ -98,7 +105,10 @@ class Relatorio_BBCE:
                 AND data_hora < "{self.lista_semana[0] + datetime.timedelta(days=1)}"
                 '''
                 print(query)
+                print("-----------------")
+                print("TABELA")
                 tabela = pd.DataFrame(db.query(query))
+                print(tabela)
                 qt_negocios = len(tabela['volume_medio'])
                 volume = sum(tabela['volume_medio'])
                 col_pro.append(produto)
@@ -119,10 +129,24 @@ class Relatorio_BBCE:
         tabela_preco_passada_i = pd.DataFrame(db.query(query6))
         print(tabela_preco_passada_i)
         produtos_passada = list(dict.fromkeys(tabela_preco_passada['produto']))
+        produtos_passada_i = list(dict.fromkeys(tabela_preco_passada_i['produto']))
+        print("----------------")
+        print("PRODUTOS PASSADA")
+        print(produtos_passada)
         colunas = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
         col_pro, col_prp, col_pra, col_var = [], [], [], []
-        for produto in produtos_passada:
-            valores = tabela_preco_passada.loc[tabela_preco_passada['produto'] == produto]
+        #for produto in produtos_passada:
+         #   valores = tabela_preco_passada.loc[tabela_preco_passada['produto'] == produto]
+          #  if len((tabela_preco.loc[tabela_preco['produto'] == produto])['dia']) >= 1 and len(valores['dia']) >= 1:
+           #     preco_atual = (tabela_preco.loc[tabela_preco['produto'] == produto])['preco'].tolist()[-1]
+            #    preco_passada = valores['preco'].tolist()[-1]
+             #   variacao = (preco_atual - preco_passada) * 100 / preco_passada
+              #  col_pro.append(produto)
+               # col_prp.append("R$ %.2f" % preco_passada)
+                #col_pra.append("R$ %.2f" % preco_atual)
+                #col_var.append("%.2f%%" % variacao)
+        for produto in produtos_passada_i:
+            valores = tabela_preco_passada_i.loc[tabela_preco_passada_i['produto'] == produto]
             if len((tabela_preco.loc[tabela_preco['produto'] == produto])['dia']) >= 1 and len(valores['dia']) >= 1:
                 preco_atual = (tabela_preco.loc[tabela_preco['produto'] == produto])['preco'].tolist()[-1]
                 preco_passada = valores['preco'].tolist()[-1]
