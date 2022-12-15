@@ -13,6 +13,12 @@ class Relatorio_BBCE:
             else:
                 break
         self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
+    def remove_repetidos(self, lista):
+        l = []
+        for i in lista:
+            if i not in l:
+                l.append(i)
+        return l
     def query_principal(self, lista, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
         query_padrao = f'''
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
@@ -31,15 +37,11 @@ class Relatorio_BBCE:
     def faz_grafico(self):
         db = tl.connection_db('BBCE')
         query1 = self.query_principal(lista=self.lista_semana, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco", tem_fim='')
-        print(query1)
         query2 = self.query_principal(lista=self.lista_semana, tabela="precos_interpolation", tabela2="precos_interpolation.preco", tem_fim='')
-        print(query2)
         tabela1 = pd.DataFrame(db.query(query1))	 #transforma tabela em dataframe
         tabela2 = pd.DataFrame(db.query(query2))
         a = pd.concat([tabela1, tabela2]) 		 #junta as duas tabelas
         b = a.sort_values(['inicio', 'dia'])
-        print(a)
-        print(b)#ordena os valores das colunas inicio e dia
         b.reset_index(inplace=True, drop=True) 		 #inplace=muda na tabela principal
         tabela = b.drop('inicio', axis=1)
         ymin = 10 * round(tabela['preco'].min() / 10)
@@ -62,13 +64,10 @@ class Relatorio_BBCE:
         plt.grid(linestyle='--')
         plt.savefig(f'./graficos/grafico_semana_{self.lista_semana[4].strftime("%d-%m")}.jpg',
                     bbox_extra_artists=(plt.legend(bbox_to_anchor=(1.58, 0), loc="lower right"),), bbox_inches='tight')
-        plt.clf()
     def faz_tabelas(self):
         db = tl.connection_db('BBCE')
         query3 = self.query_principal(lista=self.lista_semana, tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
-        print(query3)
         query4 = self.query_principal(lista=self.lista_semana, tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
-        print(query4)
         tabela1 = pd.DataFrame(db.query(query3))
         tabela2 = pd.DataFrame(db.query(query4))
         a = pd.concat([tabela1, tabela2])
@@ -76,18 +75,10 @@ class Relatorio_BBCE:
         b.reset_index(inplace=True, drop=True)
         tabela_preco = b  # .drop('inicio',axis=1)
         produtos = list(dict.fromkeys(tabela_preco['produto']))
-        print(produtos)
-        print("-----------------")
-        print("PRODUTOS")
-        print("")
         colunas = ['Produto', 'Preço inicial', 'Preço final', 'Variação', 'Qt. Negócios', 'Volume']
         col_pro, col_pri, col_ult, col_var, col_qtn, col_vol = [], [], [], [], [], []
         for produto in produtos:
-            print("-----------------")
-            print("VALORES")
-            print("")
             valores = tabela_preco.loc[tabela_preco['produto'] == produto]
-            print(valores)
             if len(valores['dia']) >= 4:
                 inicio = valores['inicio'].tolist()[0]
                 fim = valores['fim'].tolist()[0]
@@ -104,11 +95,7 @@ class Relatorio_BBCE:
                 AND data_hora > "{self.lista_semana[4]}"
                 AND data_hora < "{self.lista_semana[0] + datetime.timedelta(days=1)}"
                 '''
-                print(query)
-                print("-----------------")
-                print("TABELA")
                 tabela = pd.DataFrame(db.query(query))
-                print(tabela)
                 qt_negocios = len(tabela['volume_medio'])
                 volume = sum(tabela['volume_medio'])
                 col_pro.append(produto)
@@ -122,31 +109,20 @@ class Relatorio_BBCE:
              colunas[4]: col_qtn, colunas[5]: col_vol})
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
         query5 = self.query_principal(lista=semana_passada, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco", tem_fim=', fim')
-        print(query5)
         query6 = self.query_principal(lista=semana_passada, tabela="precos_interpolation", tabela2="precos_interpolation.preco", tem_fim=', fim')
-        print(query6)
         tabela_preco_passada = pd.DataFrame(db.query(query5))
         tabela_preco_passada_i = pd.DataFrame(db.query(query6))
-        print(tabela_preco_passada_i)
+        tabela_preco_passada_j = pd.concat([tabela_preco_passada_i, tabela_preco_passada])
         produtos_passada = list(dict.fromkeys(tabela_preco_passada['produto']))
         produtos_passada_i = list(dict.fromkeys(tabela_preco_passada_i['produto']))
-        print("----------------")
-        print("PRODUTOS PASSADA")
-        print(produtos_passada)
+        produtos_passada_j = produtos_passada_i+produtos_passada
+        print(produtos_passada_j)
+        lista = self.remove_repetidos(produtos_passada_j)
+        print(lista)
         colunas = ['Produto', 'Preço passado', 'Preço atual', 'Variação']
         col_pro, col_prp, col_pra, col_var = [], [], [], []
-        #for produto in produtos_passada:
-         #   valores = tabela_preco_passada.loc[tabela_preco_passada['produto'] == produto]
-          #  if len((tabela_preco.loc[tabela_preco['produto'] == produto])['dia']) >= 1 and len(valores['dia']) >= 1:
-           #     preco_atual = (tabela_preco.loc[tabela_preco['produto'] == produto])['preco'].tolist()[-1]
-            #    preco_passada = valores['preco'].tolist()[-1]
-             #   variacao = (preco_atual - preco_passada) * 100 / preco_passada
-              #  col_pro.append(produto)
-               # col_prp.append("R$ %.2f" % preco_passada)
-                #col_pra.append("R$ %.2f" % preco_atual)
-                #col_var.append("%.2f%%" % variacao)
-        for produto in produtos_passada_i:
-            valores = tabela_preco_passada_i.loc[tabela_preco_passada_i['produto'] == produto]
+        for produto in lista:
+            valores = tabela_preco_passada_j.loc[tabela_preco_passada_j['produto'] == produto]
             if len((tabela_preco.loc[tabela_preco['produto'] == produto])['dia']) >= 1 and len(valores['dia']) >= 1:
                 preco_atual = (tabela_preco.loc[tabela_preco['produto'] == produto])['preco'].tolist()[-1]
                 preco_passada = valores['preco'].tolist()[-1]
@@ -157,8 +133,6 @@ class Relatorio_BBCE:
                 col_var.append("%.2f%%" % variacao)
         tabela2 = pd.DataFrame(
             {colunas[0]: [i[6:15] for i in col_pro], colunas[1]: col_prp, colunas[2]: col_pra, colunas[3]: col_var})
-        print(tabela1)
-        print(tabela2)
         tabela1.to_excel(f'./tabelas/tabela_semana_{self.lista_semana[4]}.xlsx', sheet_name='sheet1', index=False)
         tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.lista_semana[4]}.xlsx', sheet_name='sheet2', index=False)
         return tabela1, tabela2
