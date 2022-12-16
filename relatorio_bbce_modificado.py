@@ -2,9 +2,10 @@ import datetime, pandas as pd, numpy as np, tools as tl, docx, matplotlib.pyplot
 from datetime import datetime as dt
 class Relatorio_BBCE:
     def __init__(self):
-        while True:
-            try:
+        while True:            #loop para informar o dia do relatório, obrigando o dia ser uma sexta,
+            try:                # dia que é gerado o relatório
                 self.periodo = input("Informe a data que quer o relatório (Dd/Mm/Aa): ")
+                self.mes = input("Informe até qual mês que quer o relatório (ex: 5): ")
                 self.novo_periodo = dt.strptime(self.periodo, '%d/%m/%Y').date()
                 if not self.novo_periodo.weekday() >= 4:
                     raise ValueError("Dia fora do range permitido")
@@ -12,17 +13,17 @@ class Relatorio_BBCE:
                 print("Valor inválido:")
             else:
                 break
-        self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)]
-    def remove_repetidos(self, lista):
-        l = []
-        for i in lista:
+        self.lista_semana = [self.novo_periodo-datetime.timedelta(days=contador) for contador in range(0,5)] #pega o dia escolhido para gerar o relatório e forma a semana com os dias anteriores
+    def remove_repetidos(self, lista): # função que recebe uma lista com os meses e valores dos produtos
+        l = []                         # das tabelas de interpolação+tabela de preços e remove os meses repetidos
+        for i in lista:                # formando a tabela comparativa da semana passada
             if i not in l:
                 l.append(i)
         return l
-    def query_principal(self, lista, tabela, tabela2, inicio='2022-12-31', tem_fim=''):
-        query_padrao = f'''
+    def query_principal(self, lista, tabela, tabela2, inicio='2022-12-31', tem_fim=''): #query padrão com parâmetros para extrair infos do banco de dados ao longo do código
+        query_padrao = f'''         
         SELECT produto, dia, {tabela2}, inicio{tem_fim} FROM {tabela} JOIN produtos_bbce ON id_produto = id
-        WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-04-01' AND inicio > '{inicio}'
+        WHERE DATEDIFF(fim,inicio) < 32 AND inicio < '2023-{self.mes}-01' AND inicio > '{inicio}'
         AND (dia = "{lista[4]}"
         OR dia = "{lista[3]}"
         OR dia = "{lista[2]}"
@@ -34,21 +35,21 @@ class Relatorio_BBCE:
         ORDER BY inicio;
         '''
         return query_padrao
-    def faz_grafico(self):
+    def faz_grafico(self): #função que usa a lista com os dias da semana e plota o gráfico com os valores de cada produto da semana selecionada
         db = tl.connection_db('BBCE')
         query1 = self.query_principal(lista=self.lista_semana, tabela="precos_bbce_geral", tabela2="precos_bbce_geral.preco", tem_fim='')
         query2 = self.query_principal(lista=self.lista_semana, tabela="precos_interpolation", tabela2="precos_interpolation.preco", tem_fim='')
-        tabela1 = pd.DataFrame(db.query(query1))	 #transforma tabela em dataframe
+        tabela1 = pd.DataFrame(db.query(query1))
         tabela2 = pd.DataFrame(db.query(query2))
-        a = pd.concat([tabela1, tabela2]) 		 #junta as duas tabelas
+        a = pd.concat([tabela1, tabela2])
         b = a.sort_values(['inicio', 'dia'])
-        b.reset_index(inplace=True, drop=True) 		 #inplace=muda na tabela principal
+        b.reset_index(inplace=True, drop=True)
         tabela = b.drop('inicio', axis=1)
         ymin = 10 * round(tabela['preco'].min() / 10)
         ymax = 10 * round(tabela['preco'].max() / 10) + 10
         produtos = list(dict.fromkeys(tabela['produto']))
         plt.figure(figsize=(6, 5))
-        for produto in produtos:
+        for produto in produtos:  #loop
             valores = tabela.loc[tabela['produto'] == produto]
             if len(valores['dia']) == 5:
                 plt.plot_date([dt.strftime(i, "%d/%m") for i in valores['dia']], valores['preco'], '--o', label='',
@@ -64,7 +65,7 @@ class Relatorio_BBCE:
         plt.grid(linestyle='--')
         plt.savefig(f'./graficos/grafico_semana_{self.lista_semana[4].strftime("%d-%m")}.jpg',
                     bbox_extra_artists=(plt.legend(bbox_to_anchor=(1.58, 0), loc="lower right"),), bbox_inches='tight')
-    def faz_tabelas(self):
+    def faz_tabelas(self):  #monta as tabelas .xls com os valores comparativos da semana passada e da semana atual
         db = tl.connection_db('BBCE')
         query3 = self.query_principal(lista=self.lista_semana, tabela2="precos_bbce_geral.preco", tabela="precos_bbce_geral", tem_fim=', fim')
         query4 = self.query_principal(lista=self.lista_semana, tabela2= "precos_interpolation.preco", tabela="precos_interpolation", tem_fim=', fim')
@@ -86,7 +87,7 @@ class Relatorio_BBCE:
                 ultimo_preco = valores['preco'].tolist()[-1]
                 variacao = (ultimo_preco - primeiro_preco) * 100 / primeiro_preco
                 query = f'''
-                SELECT volume_medio FROM bbce
+                SELECT volume_medio FROM bbce 
                 WHERE submercado = "SE"
                 AND tipo_energia = "CON"
                 AND data_inicio = "{inicio}"
@@ -95,7 +96,7 @@ class Relatorio_BBCE:
                 AND data_hora > "{self.lista_semana[4]}"
                 AND data_hora < "{self.lista_semana[0] + datetime.timedelta(days=1)}"
                 '''
-                tabela = pd.DataFrame(db.query(query))
+                tabela = pd.DataFrame(db.query(query)) #query pra cálculo do volume médio
                 qt_negocios = len(tabela['volume_medio'])
                 volume = sum(tabela['volume_medio'])
                 col_pro.append(produto)
@@ -136,7 +137,7 @@ class Relatorio_BBCE:
         tabela1.to_excel(f'./tabelas/tabela_semana_{self.lista_semana[4]}.xlsx', sheet_name='sheet1', index=False)
         tabela2.to_excel(f'./tabelas/tabela_comparativa_semana_{self.lista_semana[4]}.xlsx', sheet_name='sheet2', index=False)
         return tabela1, tabela2
-    def escreve_relatorio(self):
+    def escreve_relatorio(self): #função que monta o relatório com os valores das tabelas e o gráfico
         tabela_info, tabela_comparativa = self.faz_tabelas()
         self.faz_grafico()
         semana_passada = [dia - datetime.timedelta(days=7) for dia in self.lista_semana]
@@ -148,7 +149,7 @@ class Relatorio_BBCE:
         table = doc.add_table(rows=1, cols=6)
         row = table.rows[0].cells
         lista_row = ['Produto      ', 'Preço inicial', 'Preço final  ', 'Variação     ', 'Qt. Negócios ', 'Volume total ']
-        for linha in range(0, 6):
+        for linha in range(0, 6): #loop que insere nas linhas os rótulos da lista acima
             row[linha].text = lista_row[linha]
         for linha in tabela_info.itertuples(index=False):
             row = table.add_row().cells
@@ -156,7 +157,7 @@ class Relatorio_BBCE:
                 row[i].text = linha[i]
         table.style = 'Colorful Grid Accent 1'
         lista_row3 = [2.47, 2.72, 2.50, 2.17, 2.72, 3.04]
-        for linha in range(0, 6):
+        for linha in range(0, 6):  #loop que define o tamanho das colunas
             for cell in table.columns[linha].cells:
                 cell.width = docx.shared.Cm(lista_row3[linha])
         doc.add_paragraph(
@@ -172,11 +173,11 @@ class Relatorio_BBCE:
                 row[i].text = linha[i]
         table2.style = "Colorful Grid Accent 1"
         lista_tamanhos = [2.46, 3.18, 2.80, 2.10]
-        for indice in range(0, 4):
+        for indice in range(0, 4):   #loop para definir o tamanho das células de acordo com a lista acima
             for cell in table2.columns[indice].cells:
                 cell.width=docx.shared.Cm(lista_tamanhos[indice])
         doc.save(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[4].strftime("%d-%m")}.docx')
-        try:
+        try:  #salva o relatório se nao houver erro
             word = win32.Dispatch('Word.Application')
             wdFormatPDF = 17
             in_file = os.path.abspath(f'./relatorios_bbce/relatorio_semana_{self.lista_semana[4].strftime("%d-%m")}.docx')
